@@ -13,6 +13,9 @@
  *
  * $Id: tpm_integrity.c 474 2011-12-20 10:27:45Z mast $
  */
+#include <stdlib.h>
+#include <stdio.h>
+#include <stdint.h>
 
 #include "tpm_emulator.h"
 #include "tpm_commands.h"
@@ -30,6 +33,7 @@
 #define PCR_ATTRIB     tpmData.permanent.data.pcrAttrib
 #define PCR_VALUE      tpmData.permanent.data.pcrValue
 #define LOCALITY       tpmData.stany.flags.localityModifier
+#define PCR_FILE       "/root/tpm-emulator/PCR_VALUE"
 
 TPM_RESULT TPM_Extend(TPM_PCRINDEX pcrNum, TPM_DIGEST *inDigest, 
                       TPM_PCRVALUE *outDigest)
@@ -57,6 +61,26 @@ TPM_RESULT TPM_PCRRead(TPM_PCRINDEX pcrIndex, TPM_PCRVALUE *outDigest)
 {
   info("TPM_PCRRead()");
   if (pcrIndex >= TPM_NUM_PCR) return TPM_BADINDEX;
+  FILE *pcr_file = fopen(PCR_FILE, "r");
+  if (pcr_file)
+  {
+    char cursor;
+    TPM_PCRINDEX i = 0; 
+    while (i <= pcrIndex)
+    {
+      cursor = fgetc(pcr_file);
+      if (cursor == 58)
+        i ++; 
+    }
+    int j;
+    int pcr_value;
+    for (j=0; j<20; j++)
+    {
+      fscanf(pcr_file, "%x", &pcr_value);
+      PCR_VALUE[pcrIndex].digest[j] = pcr_value;
+    }
+    fclose(pcr_file);
+  }
   memcpy(outDigest, &PCR_VALUE[pcrIndex], sizeof(TPM_PCRVALUE));
   return TPM_SUCCESS;
 }
